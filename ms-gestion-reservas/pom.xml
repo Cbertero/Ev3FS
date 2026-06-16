@@ -75,6 +75,12 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Librería Global de Excepciones del Hotel -->
+        <dependency>
+            <groupId>com.hotel</groupId>
+            <artifactId>hotel-global-exception</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>

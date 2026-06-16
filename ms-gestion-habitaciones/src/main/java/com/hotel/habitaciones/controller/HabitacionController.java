@@ -56,7 +56,7 @@ public class HabitacionController {
         @ApiResponse(responseCode = "404", description = "Habitación no encontrada")
     })
     @PutMapping("/estado/{id}")
-    public ResponseEntity<EntityModel<String>> actualizarEstado(
+    public ResponseEntity<String> actualizarEstado(
             @Parameter(description = "ID de la habitación", required = true)
             @PathVariable Long id,
             @Parameter(description = "Nuevo estado: DISPONIBLE, OCUPADA, MANTENCION", required = true)
@@ -64,11 +64,6 @@ public class HabitacionController {
 
         String respuesta = habitacionService.actualizarEstadoHabitacion(id, nuevoEstado);
 
-        EntityModel<String> model = EntityModel.of(respuesta,
-                linkTo(methodOn(HabitacionController.class).actualizarEstado(id, nuevoEstado)).withSelfRel(),
-                linkTo(methodOn(HabitacionController.class).listarDisponibles()).withRel("disponibles")
-        );
-
-        return ResponseEntity.ok(model);
+        return ResponseEntity.ok(respuesta);
     }
 }

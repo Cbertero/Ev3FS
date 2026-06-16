@@ -1,0 +1,65 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ms-puerta-enlace
+
+  cloud:
+    gateway:
+      routes:
+        # ========================================================
+        # MS 2: GESTIÓN DE USUARIOS (Carlos Lobos)
+        # ========================================================
+        - id: ms-gestion-usuarios
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/usuarios/**
+
+        # ========================================================
+        # MS 3: GESTIÓN DE PERSONAL (Carlos Lobos)
+        # ========================================================
+        - id: ms-gestion-personal
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/personal/**
+
+        # ========================================================
+        # MS 4: GESTIÓN DE HUÉSPEDES (Claudio Bertero)
+        # ========================================================
+        - id: ms-gestion-huespedes
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/huespedes/**
+
+        # ========================================================
+        # MS 5: GESTIÓN DE HABITACIONES (Claudio Bertero)
+        # ========================================================
+        - id: ms-gestion-habitaciones
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/habitaciones/**
+
+        # ========================================================
+        # MS 6: GESTIÓN DE RESERVAS (Claudio Bertero)
+        # ========================================================
+        - id: ms-gestion-reservas
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/reservas/**
+
+        # ========================================================
+        # MS 7: GESTIÓN DE AUDITORÍA (Logs / Historial)
+        # ========================================================
+        - id: ms-log-auditoria
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/log-auditoria/**
+
+        # ===================================================================
+        # MS 8: GESTIÓN DE NOTIFICACIONES (Alertas / Correos)  (Carlos Lobos)
+        # ===================================================================
+        - id: ms-gestion-notificaciones
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/notificaciones/**

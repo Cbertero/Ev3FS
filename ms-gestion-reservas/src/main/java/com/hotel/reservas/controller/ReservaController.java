@@ -77,23 +77,18 @@ public class ReservaController {
     }
 
     @Operation(summary = "Cancelar una reserva",
-               description = "Cambia el estado de la reserva a CANCELADA. No se puede cancelar una ya cancelada.")
+            description = "Cambia el estado de la reserva a CANCELADA. No se puede cancelar una ya cancelada.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Reserva cancelada exitosamente"),
-        @ApiResponse(responseCode = "404", description = "Reserva no encontrada"),
-        @ApiResponse(responseCode = "409", description = "La reserva ya estaba cancelada")
+            @ApiResponse(responseCode = "200", description = "Reserva cancelada exitosamente"),
+            @ApiResponse(responseCode = "404", description = "Reserva no encontrada"),
+            @ApiResponse(responseCode = "409", description = "La reserva ya estaba cancelada")
     })
     @PostMapping("/cancelar/{id}")
-    public ResponseEntity<EntityModel<String>> cancelarReserva(
+    public ResponseEntity<String> cancelarReserva(
             @Parameter(description = "ID de la reserva a cancelar", required = true)
             @PathVariable Long id) {
 
         String respuesta = reservaService.cancelarReserva(id);
-
-        EntityModel<String> model = EntityModel.of(respuesta,
-                linkTo(methodOn(ReservaController.class).cancelarReserva(id)).withSelfRel()
-        );
-
-        return ResponseEntity.ok(model);
+        return ResponseEntity.ok(respuesta);
     }
 }

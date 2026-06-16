@@ -1,0 +1,15 @@
+# Archivos de IntelliJ
+.idea/
+*.iml
+
+# Archivos de macOS
+.DS_Store
+
+# Carpetas de construcción
+target/
+build/
+bin/
+out/
+
+# Logs y otros
+*.log
