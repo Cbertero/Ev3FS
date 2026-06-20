@@ -1,18 +1,14 @@
 server:
-  port: 8084
+  port: 8086
 
 spring:
   application:
-    name: ms-gestion-habitaciones
-
-  # MySQL DataSource
+    name: ms-log-auditoria
   datasource:
-    url: jdbc:mysql://localhost:3306/db_habitaciones
+    url: jdbc:mysql://localhost:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password:
-
-  # JPA / Hibernate
+    password: ""  # Si en tu Mac le pusiste contraseña al root de MySQL, escríbela aquí
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
@@ -22,7 +18,6 @@ spring:
       hibernate:
         format_sql: true
 
-# Swagger / OpenAPI
 springdoc:
   api-docs:
     path: /api-docs

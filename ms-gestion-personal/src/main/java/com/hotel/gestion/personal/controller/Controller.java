@@ -1,6 +1,8 @@
 package com.hotel.gestion.personal.controller;
 
 import com.hotel.gestion.personal.dto.PersonalDto;
+import com.hotel.gestion.personal.dto.UsuarioLoginDto;
+import com.hotel.gestion.personal.dto.TokenResponseDto;
 import com.hotel.gestion.personal.servicio.Servicio;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,23 +16,27 @@ import java.util.List;
 @RequiredArgsConstructor
 public class Controller {
 
-        private final Servicio servicio;
+    private final Servicio servicio;
 
-        @GetMapping("/listar")
-        public ResponseEntity<List<PersonalDto>> listar() {
-            return ResponseEntity.ok(servicio.obtenerTodoElPersonal());
-        }
-
-        @PostMapping("/registrar")
-        public ResponseEntity<String> registrar(@Valid @RequestBody PersonalDto dto) {
-            String respuesta = servicio.guardarTrabajador(dto);
-            return ResponseEntity.ok(respuesta);
-        }
-
-        @DeleteMapping("/eliminar/{rut}")
-        public ResponseEntity<String> eliminar(@PathVariable String rut) {
-            String respuesta = servicio.darDeBajaTrabajador(rut);
-            return ResponseEntity.ok(respuesta);
-        }
+    @PostMapping("/registrar")
+    public ResponseEntity<TokenResponseDto> registrar(@Valid @RequestBody PersonalDto dto) {
+        return ResponseEntity.ok(servicio.registrar(dto));
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponseDto> login(@Valid @RequestBody UsuarioLoginDto loginDto) {
+        return ResponseEntity.ok(servicio.loguear(loginDto));
+    }
+
+
+    @GetMapping("/listar")
+    public ResponseEntity<List<PersonalDto>> listar(@RequestParam String rolUsuario) {
+        return ResponseEntity.ok(servicio.listar(rolUsuario));
+    }
+
+
+    @DeleteMapping("/eliminar/{rut}")
+    public ResponseEntity<String> eliminar(@PathVariable String rut) {
+        return ResponseEntity.ok(servicio.eliminar(rut));
+    }
+}

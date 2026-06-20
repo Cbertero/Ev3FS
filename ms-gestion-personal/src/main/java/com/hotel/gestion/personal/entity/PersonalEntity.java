@@ -16,11 +16,12 @@ import lombok.NoArgsConstructor;
 @Table(name = "personal")
 public class PersonalEntity {
 
-    @Id
-    private String rut;
-
-    private String nombreCompleto;
-    private String cargo;
-    private String turno;
-    private Double sueldoBase;
-}
+        @Id
+        private String rut;
+        private String nombreCompleto;
+        private String cargo;
+        private String turno;
+        private int horasExtras;
+        private double sueldoBase;
+        private double sueldoTotal;
+    }

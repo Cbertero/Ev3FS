@@ -1,0 +1,198 @@
+version: "3.8"
+
+services:
+
+  # ============================================
+  # BASE DE DATOS
+  # ============================================
+  mysql:
+    image: mysql:8.0
+    container_name: hotel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: Hotel_CL_CB
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hotel-network
+
+  # ============================================
+  # LIBRERÍA COMPARTIDA (no se ejecuta como servicio)
+  # Se construye primero para que los microservicios
+  # puedan usarla como dependencia Maven durante su build
+  # ============================================
+  hotel-global-exception:
+    build:
+      context: ./hotel-global-exception
+      dockerfile: hotel-global-exception.Dockerfile
+    image: hotel-global-exception:latest
+    container_name: hotel-global-exception-builder
+    entrypoint: ["true"]
+
+  # ============================================
+  # API GATEWAY
+  # ============================================
+  ms-puerta-enlace:
+    build:
+      context: ./ms-puerta-enlace
+    container_name: ms-puerta-enlace
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ms-gestion-personal
+      - ms-gestion-huespedes
+      - ms-gestion-habitaciones
+      - ms-gestion-reservas
+      - ms-log-auditoria
+      - ms-logs-notificaciones
+      - ms-recepcionista
+    networks:
+      - hotel-network
+
+  # ============================================
+  # MICROSERVICIOS
+  # ============================================
+  ms-gestion-personal:
+    build:
+      context: ./ms-gestion-personal
+    container_name: ms-gestion-personal
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+    depends_on:
+      mysql:
+        condition: service_healthy
+      hotel-global-exception:
+        condition: service_completed_successfully
+    networks:
+      - hotel-network
+
+  ms-gestion-huespedes:
+    build:
+      context: ./ms-gestion-huespedes
+    container_name: ms-gestion-huespedes
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+    depends_on:
+      mysql:
+        condition: service_healthy
+      hotel-global-exception:
+        condition: service_completed_successfully
+    networks:
+      - hotel-network
+
+  ms-gestion-habitaciones:
+    build:
+      context: ./ms-gestion-habitaciones
+    container_name: ms-gestion-habitaciones
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+    depends_on:
+      mysql:
+        condition: service_healthy
+      hotel-global-exception:
+        condition: service_completed_successfully
+    networks:
+      - hotel-network
+
+  ms-gestion-reservas:
+    build:
+      context: ./ms-gestion-reservas
+    container_name: ms-gestion-reservas
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+    depends_on:
+      mysql:
+        condition: service_healthy
+      hotel-global-exception:
+        condition: service_completed_successfully
+    networks:
+      - hotel-network
+
+  ms-log-auditoria:
+    build:
+      context: ./ms-log-auditoria
+    container_name: ms-log-auditoria
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+    depends_on:
+      mysql:
+        condition: service_healthy
+      hotel-global-exception:
+        condition: service_completed_successfully
+    networks:
+      - hotel-network
+
+  ms-logs-notificaciones:
+    build:
+      context: ./ms-logs-notificaciones
+    container_name: ms-logs-notificaciones
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+    depends_on:
+      mysql:
+        condition: service_healthy
+      hotel-global-exception:
+        condition: service_completed_successfully
+    networks:
+      - hotel-network
+
+  ms-recepcionista:
+    build:
+      context: ./ms-recepcionista
+    container_name: ms-recepcionista
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    depends_on:
+      - ms-gestion-personal
+      - ms-gestion-huespedes
+      - ms-gestion-habitaciones
+      - ms-gestion-reservas
+    networks:
+      - hotel-network
+
+networks:
+  hotel-network:
+    driver: bridge
+
+volumes:
+  mysql_data:

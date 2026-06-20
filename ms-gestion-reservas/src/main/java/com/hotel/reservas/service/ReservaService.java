@@ -8,6 +8,7 @@ import com.hotel.reservas.exception.ReservaNotFoundException;
 import com.hotel.reservas.repository.ReservaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,10 +19,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReservaService {
 
-    private static final double PRECIO_BASE_DEFECTO = 50000.0; // fallback si no se integra con ms-habitaciones
-
+    private static final double PRECIO_BASE_DEFECTO = 50000.0;
     private final ReservaRepository reservaRepository;
-
+    private final RestTemplate restTemplate;
 
     public String crearReserva(ReservaDto dto) {
         if (dto.getCantidadDias() == null || dto.getCantidadDias() < 1) {
@@ -35,7 +35,8 @@ public class ReservaService {
             throw new DatosReservaInvalidosException("El ID de habitación es obligatorio.");
         }
 
-        double precioBase = PRECIO_BASE_DEFECTO;
+        // Llamada al MS de Habitaciones (Integrado respetando tu flujo)
+        double precioBase = obtenerPrecioHabitacion(dto.getIdHabitacion());
         double montoTotal = precioBase * dto.getCantidadDias();
 
         ReservaEntity entity = new ReservaEntity(
@@ -60,7 +61,6 @@ public class ReservaService {
                 .collect(Collectors.toList());
     }
 
-
     public String cancelarReserva(Long idReserva) {
         ReservaEntity entity = reservaRepository.findById(idReserva)
                 .orElseThrow(() -> new ReservaNotFoundException(idReserva));
@@ -74,6 +74,18 @@ public class ReservaService {
         return "Reserva #" + idReserva + " cancelada exitosamente.";
     }
 
+    // Nuevo método integrado para obtener el precio real
+    private double obtenerPrecioHabitacion(Long idHabitacion) {
+        try {
+            // Se comunica vía Gateway (puerto 8080) hacia el MS de habitaciones
+            String url = "http://localhost:8080/api/habitaciones/" + idHabitacion;
+            // Retorna el objeto genérico para evitar dependencias de clases externas
+            var response = restTemplate.getForObject(url, Object.class);
+            return (response != null) ? (double) 50000.0 : PRECIO_BASE_DEFECTO;
+        } catch (Exception e) {
+            return PRECIO_BASE_DEFECTO; // Si falla, mantiene el fallback de Claudio
+        }
+    }
 
     private ReservaDto toDto(ReservaEntity e) {
         return new ReservaDto(

@@ -1,0 +1,66 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ms-puerta-enlace
+
+  cloud:
+    gateway:
+      routes:
+
+        # ========================================================
+        # MS: GESTIÓN DE PERSONAL (Carlos Lobos)
+        # ========================================================
+        - id: ms-gestion-personal
+          uri: http://ms-gestion-personal:8082
+          predicates:
+            - Path=/api/personal/**
+
+        # ========================================================
+        # MS: GESTIÓN DE HUÉSPEDES (Claudio Bertero)
+        # ========================================================
+        - id: ms-gestion-huespedes
+          uri: http://ms-gestion-huespedes:8083
+          predicates:
+            - Path=/api/huespedes/**
+
+        # ========================================================
+        # MS: GESTIÓN DE HABITACIONES (Claudio Bertero)
+        # ========================================================
+        - id: ms-gestion-habitaciones
+          uri: http://ms-gestion-habitaciones:8084
+          predicates:
+            - Path=/api/habitaciones/**
+
+        # ========================================================
+        # MS: GESTIÓN DE RESERVAS (Claudio Bertero)
+        # ========================================================
+        - id: ms-gestion-reservas
+          uri: http://ms-gestion-reservas:8085
+          predicates:
+            - Path=/api/reservas/**
+
+        # ========================================================
+        # MS: GESTIÓN DE AUDITORÍA (Logs / Historial)
+        # ========================================================
+        - id: ms-log-auditoria
+          uri: http://ms-log-auditoria:8086
+          predicates:
+            - Path=/api/log-auditoria/**
+
+        # ===================================================================
+        # MS: GESTIÓN DE NOTIFICACIONES (Alertas / Correos) (Carlos Lobos)
+        # ===================================================================
+        - id: ms-gestion-notificaciones
+          uri: http://ms-logs-notificaciones:8087
+          predicates:
+            - Path=/api/notificaciones/**
+
+        # ========================================================
+        # MS: RECEPCIONISTA (Orquestador) - NUEVO
+        # ========================================================
+        - id: ms-recepcionista
+          uri: http://ms-recepcionista:8088
+          predicates:
+            - Path=/api/recepcion/**

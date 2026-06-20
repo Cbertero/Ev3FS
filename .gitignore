@@ -1,15 +1,18 @@
-# Archivos de IntelliJ
+# Maven
+target/
+*.jar
+*.war
+
+# IDE
 .idea/
 *.iml
+*.ipr
+*.iws
+.vscode/
 
-# Archivos de macOS
+# OS
 .DS_Store
+Thumbs.db
 
-# Carpetas de construcción
-target/
-build/
-bin/
-out/
-
-# Logs y otros
+# Logs
 *.log
