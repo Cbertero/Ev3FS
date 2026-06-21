@@ -28,6 +28,12 @@ public class HabitacionService {
                 .collect(Collectors.toList());
     }
 
+    public HabitacionDto obtenerPorId(Long id) {
+        HabitacionEntity entity = habitacionRepository.findById(id)
+                .orElseThrow(() -> new HabitacionNotFoundException(id));
+        return toDto(entity);
+    }
+
 
     public String actualizarEstadoHabitacion(Long id, String nuevoEstado) {
         String estadoUpper = nuevoEstado.toUpperCase();

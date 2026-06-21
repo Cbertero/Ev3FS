@@ -25,6 +25,6 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
 # Puerto expuesto (informativo, se mapea real en docker-compose)
-EXPOSE 8080
+EXPOSE 8088
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

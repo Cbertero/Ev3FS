@@ -3,7 +3,7 @@ package com.hotel.ms_notificaciones.service;
 import com.hotel.ms_notificaciones.dto.NotificacionRequest;
 import com.hotel.ms_notificaciones.entity.NotificacionEntity;
 import com.hotel.ms_notificaciones.exception.NotificacionNotFoundException;
-import com.hotel.ms_notificaciones.repositorio.Repository;
+import com.hotel.ms_notificaciones.repositorio.NotificacionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
@@ -19,7 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class Servicio {
 
-        private final Repository repository;
+        private final NotificacionRepository repository;
         private final JavaMailSender mailSender;
 
 

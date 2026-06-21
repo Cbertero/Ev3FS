@@ -47,6 +47,7 @@ class ServicioTest {
                 .cargo("recepcionista")
                 .turno("MAÑANA")
                 .horasExtras(0)
+                .password("claveSegura123")
                 .build();
     }
 
@@ -56,6 +57,22 @@ class ServicioTest {
     @Nested
     @DisplayName("registrar()")
     class Registrar {
+
+        @org.junit.jupiter.api.BeforeEach
+        void mockearGuardadoYLogin() {
+            // registrar() guarda la entidad y, al final, llama internamente a
+            // loguear(), que busca por RUT. Sin este mock, findByRut() devolvería
+            // Optional.empty() por defecto y loguear() lanzaría
+            // CredencialesInvalidasException antes de poder retornar el token.
+            // doAnswer() captura la entidad recién guardada y configura
+            // findByRut() para devolverla, simulando un guardado exitoso seguido
+            // de una búsqueda real en base de datos.
+            doAnswer(invocation -> {
+                PersonalEntity guardado = invocation.getArgument(0);
+                when(repositorio.findByRut(guardado.getRut())).thenReturn(java.util.Optional.of(guardado));
+                return guardado;
+            }).when(repositorio).save(any(PersonalEntity.class));
+        }
 
         @Test
         @DisplayName("Lanza excepción si el RUT ya existe")
@@ -151,6 +168,70 @@ class ServicioTest {
             ArgumentCaptor<PersonalEntity> captor = ArgumentCaptor.forClass(PersonalEntity.class);
             verify(repositorio, times(1)).save(captor.capture());
             return captor.getValue();
+        }
+    }
+
+    // ==========================================================
+    // loguear()
+    // ==========================================================
+    @Nested
+    @DisplayName("loguear()")
+    class Loguear {
+
+        @Test
+        @DisplayName("Lanza CredencialesInvalidasException si el RUT no existe")
+        void loguear_rutInexistente_lanzaExcepcion() {
+            when(repositorio.findByRut("99999999-9")).thenReturn(java.util.Optional.empty());
+
+            var loginDto = new com.hotel.gestion.personal.dto.UsuarioLoginDto("99999999-9", "cualquierClave");
+
+            assertThrows(
+                    com.hotel.gestion.personal.exception.CredencialesInvalidasException.class,
+                    () -> servicio.loguear(loginDto)
+            );
+        }
+
+        @Test
+        @DisplayName("Lanza CredencialesInvalidasException si la contraseña no coincide")
+        void loguear_passwordIncorrecta_lanzaExcepcion() {
+            org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
+                    new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+
+            PersonalEntity entidad = PersonalEntity.builder()
+                    .rut("12345678-9")
+                    .cargo("RECEPCIONISTA")
+                    .password(encoder.encode("claveCorrecta"))
+                    .build();
+            when(repositorio.findByRut("12345678-9")).thenReturn(java.util.Optional.of(entidad));
+
+            var loginDto = new com.hotel.gestion.personal.dto.UsuarioLoginDto("12345678-9", "claveIncorrecta");
+
+            assertThrows(
+                    com.hotel.gestion.personal.exception.CredencialesInvalidasException.class,
+                    () -> servicio.loguear(loginDto)
+            );
+        }
+
+        @Test
+        @DisplayName("Retorna token con el rol real del trabajador si las credenciales son correctas")
+        void loguear_credencialesCorrectas_retornaTokenConRolReal() {
+            org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
+                    new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+
+            PersonalEntity entidad = PersonalEntity.builder()
+                    .rut("12345678-9")
+                    .cargo("ADMINISTRADOR")
+                    .password(encoder.encode("claveSegura123"))
+                    .build();
+            when(repositorio.findByRut("12345678-9")).thenReturn(java.util.Optional.of(entidad));
+
+            var loginDto = new com.hotel.gestion.personal.dto.UsuarioLoginDto("12345678-9", "claveSegura123");
+
+            TokenResponseDto resultado = servicio.loguear(loginDto);
+
+            assertNotNull(resultado.getToken());
+            assertEquals("ADMINISTRADOR", resultado.getRol());
+            assertTrue(resultado.isAutenticado());
         }
     }
 

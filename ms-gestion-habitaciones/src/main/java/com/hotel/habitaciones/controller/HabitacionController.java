@@ -48,6 +48,25 @@ public class HabitacionController {
         return ResponseEntity.ok(collection);
     }
 
+    @Operation(summary = "Obtener habitación por ID",
+               description = "Retorna los datos de una habitación específica, incluyendo su precio base")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Habitación encontrada"),
+        @ApiResponse(responseCode = "404", description = "Habitación no encontrada")
+    })
+    @GetMapping("/{id}")
+    public ResponseEntity<EntityModel<HabitacionDto>> obtenerPorId(
+            @Parameter(description = "ID de la habitación", required = true)
+            @PathVariable Long id) {
+
+        HabitacionDto dto = habitacionService.obtenerPorId(id);
+        EntityModel<HabitacionDto> recurso = EntityModel.of(dto,
+                linkTo(methodOn(HabitacionController.class).obtenerPorId(id)).withSelfRel(),
+                linkTo(methodOn(HabitacionController.class).listarDisponibles()).withRel("disponibles"));
+
+        return ResponseEntity.ok(recurso);
+    }
+
     @Operation(summary = "Actualizar estado de habitación",
                description = "Cambia el estado de una habitación. Estados válidos: DISPONIBLE, OCUPADA, MANTENCION")
     @ApiResponses({

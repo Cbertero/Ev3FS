@@ -28,6 +28,12 @@ public class PersonalDto {
         @Pattern(regexp = "^[a-zA-Z ]+$")
         private String turno;
 
+        // Contraseña en texto plano recibida solo al registrar; Servicio.registrar()
+        // la hashea con BCrypt antes de guardarla y nunca se devuelve en las respuestas.
+        @NotBlank(message = "La contraseña es obligatoria.")
+        @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres.")
+        private String password;
+
         private Integer horasExtras;
 
 

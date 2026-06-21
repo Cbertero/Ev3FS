@@ -1,5 +1,6 @@
 package com.hotel.reservas.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.hotel.reservas.dto.ReservaDto;
 import com.hotel.reservas.entity.ReservaEntity;
 import com.hotel.reservas.exception.DatosReservaInvalidosException;
@@ -7,6 +8,7 @@ import com.hotel.reservas.exception.ReservaCanceladaException;
 import com.hotel.reservas.exception.ReservaNotFoundException;
 import com.hotel.reservas.repository.ReservaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -22,6 +24,12 @@ public class ReservaService {
     private static final double PRECIO_BASE_DEFECTO = 50000.0;
     private final ReservaRepository reservaRepository;
     private final RestTemplate restTemplate;
+
+    // URL base del MS de Habitaciones, inyectada desde application.yaml
+    // (propiedad hotel.ms.habitaciones.url) y sobreescribible en Docker
+    // vía variable de entorno HOTEL_MS_HABITACIONES_URL.
+    @Value("${hotel.ms.habitaciones.url:http://ms-gestion-habitaciones:8084}")
+    private String habitacionesUrl;
 
     public String crearReserva(ReservaDto dto) {
         if (dto.getCantidadDias() == null || dto.getCantidadDias() < 1) {
@@ -74,16 +82,22 @@ public class ReservaService {
         return "Reserva #" + idReserva + " cancelada exitosamente.";
     }
 
-    // Nuevo método integrado para obtener el precio real
+    // Consulta el precio real de la habitación al MS de Habitaciones.
+    // Antes llamaba a "http://localhost:8080/..." (hardcodeado), lo que
+    // dentro de un contenedor Docker apunta al propio contenedor de reservas
+    // y nunca llegaba al gateway ni al servicio de habitaciones.
+    // Ahora usa la URL inyectada por configuración y parsea el campo
+    // "precioBase" real del HabitacionDto en vez de descartar la respuesta.
     private double obtenerPrecioHabitacion(Long idHabitacion) {
         try {
-            // Se comunica vía Gateway (puerto 8080) hacia el MS de habitaciones
-            String url = "http://localhost:8080/api/habitaciones/" + idHabitacion;
-            // Retorna el objeto genérico para evitar dependencias de clases externas
-            var response = restTemplate.getForObject(url, Object.class);
-            return (response != null) ? (double) 50000.0 : PRECIO_BASE_DEFECTO;
+            String url = habitacionesUrl + "/api/habitaciones/" + idHabitacion;
+            JsonNode response = restTemplate.getForObject(url, JsonNode.class);
+            if (response != null && response.has("precioBase")) {
+                return response.get("precioBase").asDouble(PRECIO_BASE_DEFECTO);
+            }
+            return PRECIO_BASE_DEFECTO;
         } catch (Exception e) {
-            return PRECIO_BASE_DEFECTO; // Si falla, mantiene el fallback de Claudio
+            return PRECIO_BASE_DEFECTO; // Si el servicio de habitaciones no responde, usa el fallback
         }
     }
 

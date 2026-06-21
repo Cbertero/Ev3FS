@@ -129,6 +129,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root123
+      # Dentro de Docker, "localhost" apuntaría al propio contenedor de reservas,
+      # por eso se sobreescribe con el nombre del servicio de habitaciones.
+      HOTEL_MS_HABITACIONES_URL: http://ms-gestion-habitaciones:8084
     depends_on:
       mysql:
         condition: service_healthy

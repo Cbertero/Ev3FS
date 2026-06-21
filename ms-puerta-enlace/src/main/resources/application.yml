@@ -10,12 +10,23 @@ spring:
       routes:
 
         # ========================================================
+        # MS: GESTIÓN DE PERSONAL — LOGIN (sin token, es como se obtiene)
+        # ========================================================
+        - id: ms-gestion-personal-login
+          uri: http://ms-gestion-personal:8082
+          predicates:
+            - Path=/api/personal/login
+          # Sin JwtAuthenticationFilter: todavía no existe un token que exigir
+
+        # ========================================================
         # MS: GESTIÓN DE PERSONAL (Carlos Lobos)
         # ========================================================
         - id: ms-gestion-personal
           uri: http://ms-gestion-personal:8082
           predicates:
             - Path=/api/personal/**
+          filters:
+            - JwtAuthenticationFilter
 
         # ========================================================
         # MS: GESTIÓN DE HUÉSPEDES (Claudio Bertero)
@@ -24,6 +35,8 @@ spring:
           uri: http://ms-gestion-huespedes:8083
           predicates:
             - Path=/api/huespedes/**
+          filters:
+            - JwtAuthenticationFilter
 
         # ========================================================
         # MS: GESTIÓN DE HABITACIONES (Claudio Bertero)
@@ -32,6 +45,8 @@ spring:
           uri: http://ms-gestion-habitaciones:8084
           predicates:
             - Path=/api/habitaciones/**
+          filters:
+            - JwtAuthenticationFilter
 
         # ========================================================
         # MS: GESTIÓN DE RESERVAS (Claudio Bertero)
@@ -40,14 +55,20 @@ spring:
           uri: http://ms-gestion-reservas:8085
           predicates:
             - Path=/api/reservas/**
+          filters:
+            - JwtAuthenticationFilter
 
         # ========================================================
         # MS: GESTIÓN DE AUDITORÍA (Logs / Historial)
+        # NOTA: la ruta debe coincidir con @RequestMapping("/api/auditoria")
+        # del controlador real (AuditoriaController), no con "/api/log-auditoria"
         # ========================================================
         - id: ms-log-auditoria
           uri: http://ms-log-auditoria:8086
           predicates:
-            - Path=/api/log-auditoria/**
+            - Path=/api/auditoria/**
+          filters:
+            - JwtAuthenticationFilter
 
         # ===================================================================
         # MS: GESTIÓN DE NOTIFICACIONES (Alertas / Correos) (Carlos Lobos)
@@ -56,6 +77,8 @@ spring:
           uri: http://ms-logs-notificaciones:8087
           predicates:
             - Path=/api/notificaciones/**
+          filters:
+            - JwtAuthenticationFilter
 
         # ========================================================
         # MS: RECEPCIONISTA (Orquestador) - NUEVO
@@ -64,3 +87,5 @@ spring:
           uri: http://ms-recepcionista:8088
           predicates:
             - Path=/api/recepcion/**
+          filters:
+            - JwtAuthenticationFilter

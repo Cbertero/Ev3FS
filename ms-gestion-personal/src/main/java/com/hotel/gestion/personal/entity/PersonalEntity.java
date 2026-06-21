@@ -24,4 +24,8 @@ public class PersonalEntity {
         private int horasExtras;
         private double sueldoBase;
         private double sueldoTotal;
+
+        // Hash BCrypt de la contraseña, usado por Servicio.loguear() para
+        // validar credenciales reales en vez de devolver un token fijo.
+        private String password;
     }
