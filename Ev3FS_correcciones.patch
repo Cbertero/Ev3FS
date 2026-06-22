@@ -1,0 +1,676 @@
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 61aa945..919e2df 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -129,6 +129,9 @@ services:
+       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+       SPRING_DATASOURCE_USERNAME: root
+       SPRING_DATASOURCE_PASSWORD: root123
++      # Dentro de Docker, "localhost" apuntaría al propio contenedor de reservas,
++      # por eso se sobreescribe con el nombre del servicio de habitaciones.
++      HOTEL_MS_HABITACIONES_URL: http://ms-gestion-habitaciones:8084
+     depends_on:
+       mysql:
+         condition: service_healthy
+diff --git a/ms-gestion-habitaciones/pom.xml b/ms-gestion-habitaciones/pom.xml
+index e88c94f..39c0969 100644
+--- a/ms-gestion-habitaciones/pom.xml
++++ b/ms-gestion-habitaciones/pom.xml
+@@ -8,7 +8,7 @@
+     <parent>
+         <groupId>org.springframework.boot</groupId>
+         <artifactId>spring-boot-starter-parent</artifactId>
+-        <version>3.2.5</version>
++        <version>3.3.0</version>
+         <relativePath/>
+     </parent>
+ 
+diff --git a/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/controller/HabitacionController.java b/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/controller/HabitacionController.java
+index 8eb3cda..d14b4a3 100644
+--- a/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/controller/HabitacionController.java
++++ b/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/controller/HabitacionController.java
+@@ -48,6 +48,25 @@ public class HabitacionController {
+         return ResponseEntity.ok(collection);
+     }
+ 
++    @Operation(summary = "Obtener habitación por ID",
++               description = "Retorna los datos de una habitación específica, incluyendo su precio base")
++    @ApiResponses({
++        @ApiResponse(responseCode = "200", description = "Habitación encontrada"),
++        @ApiResponse(responseCode = "404", description = "Habitación no encontrada")
++    })
++    @GetMapping("/{id}")
++    public ResponseEntity<EntityModel<HabitacionDto>> obtenerPorId(
++            @Parameter(description = "ID de la habitación", required = true)
++            @PathVariable Long id) {
++
++        HabitacionDto dto = habitacionService.obtenerPorId(id);
++        EntityModel<HabitacionDto> recurso = EntityModel.of(dto,
++                linkTo(methodOn(HabitacionController.class).obtenerPorId(id)).withSelfRel(),
++                linkTo(methodOn(HabitacionController.class).listarDisponibles()).withRel("disponibles"));
++
++        return ResponseEntity.ok(recurso);
++    }
++
+     @Operation(summary = "Actualizar estado de habitación",
+                description = "Cambia el estado de una habitación. Estados válidos: DISPONIBLE, OCUPADA, MANTENCION")
+     @ApiResponses({
+diff --git a/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/service/HabitacionService.java b/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/service/HabitacionService.java
+index 86dab24..3c4df96 100644
+--- a/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/service/HabitacionService.java
++++ b/ms-gestion-habitaciones/src/main/java/com/hotel/habitaciones/service/HabitacionService.java
+@@ -28,6 +28,12 @@ public class HabitacionService {
+                 .collect(Collectors.toList());
+     }
+ 
++    public HabitacionDto obtenerPorId(Long id) {
++        HabitacionEntity entity = habitacionRepository.findById(id)
++                .orElseThrow(() -> new HabitacionNotFoundException(id));
++        return toDto(entity);
++    }
++
+ 
+     public String actualizarEstadoHabitacion(Long id, String nuevoEstado) {
+         String estadoUpper = nuevoEstado.toUpperCase();
+diff --git a/ms-gestion-habitaciones/src/main/resources/data.sql b/ms-gestion-habitaciones/src/main/resources/data.sql
+index c8cdbfd..1b985da 100644
+--- a/ms-gestion-habitaciones/src/main/resources/data.sql
++++ b/ms-gestion-habitaciones/src/main/resources/data.sql
+@@ -1,6 +1,9 @@
+ -- Datos iniciales de habitaciones para pruebas
+-INSERT INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (101, 'SIMPLE', 45000.0, 'DISPONIBLE');
+-INSERT INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (102, 'DOBLE', 75000.0, 'DISPONIBLE');
+-INSERT INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (103, 'SUITE', 150000.0, 'DISPONIBLE');
+-INSERT INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (104, 'SIMPLE', 45000.0, 'OCUPADA');
+-INSERT INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (105, 'DOBLE', 75000.0, 'MANTENCION');
++-- Se usa INSERT IGNORE para que el script no falle con error de clave
++-- duplicada si el contenedor se reinicia y la tabla ya tiene estas filas
++-- (el volumen mysql_data persiste entre reinicios de docker compose).
++INSERT IGNORE INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (101, 'SIMPLE', 45000.0, 'DISPONIBLE');
++INSERT IGNORE INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (102, 'DOBLE', 75000.0, 'DISPONIBLE');
++INSERT IGNORE INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (103, 'SUITE', 150000.0, 'DISPONIBLE');
++INSERT IGNORE INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (104, 'SIMPLE', 45000.0, 'OCUPADA');
++INSERT IGNORE INTO habitaciones (id_habitacion, tipo, precio, estado) VALUES (105, 'DOBLE', 75000.0, 'MANTENCION');
+diff --git a/ms-gestion-huespedes/pom.xml b/ms-gestion-huespedes/pom.xml
+index 74d0f5a..f8e48db 100644
+--- a/ms-gestion-huespedes/pom.xml
++++ b/ms-gestion-huespedes/pom.xml
+@@ -25,16 +25,6 @@
+     </properties>
+ 
+     <dependencies>
+-        <dependency>
+-            <groupId>com.mysql</groupId>
+-            <artifactId>mysql-connector-j</artifactId>
+-            <scope>runtime</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>com.mysql</groupId>
+-            <artifactId>mysql-connector-j</artifactId>
+-            <scope>runtime</scope>
+-        </dependency>
+         <dependency>
+             <groupId>org.springframework.boot</groupId>
+             <artifactId>spring-boot-starter-web</artifactId>
+diff --git a/ms-gestion-personal/pom.xml b/ms-gestion-personal/pom.xml
+index caf2c47..91876e2 100644
+--- a/ms-gestion-personal/pom.xml
++++ b/ms-gestion-personal/pom.xml
+@@ -43,6 +43,11 @@
+ 			<artifactId>spring-boot-starter-web</artifactId>
+ 		</dependency>
+ 
++		<dependency>
++			<groupId>org.springframework.boot</groupId>
++			<artifactId>spring-boot-starter-security</artifactId>
++		</dependency>
++
+ 		<dependency>
+ 			<groupId>com.mysql</groupId>
+ 			<artifactId>mysql-connector-j</artifactId>
+diff --git a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/PersonalDto.java b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/PersonalDto.java
+index e13701a..a985cdb 100644
+--- a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/PersonalDto.java
++++ b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/PersonalDto.java
+@@ -28,6 +28,12 @@ public class PersonalDto {
+         @Pattern(regexp = "^[a-zA-Z ]+$")
+         private String turno;
+ 
++        // Contraseña en texto plano recibida solo al registrar; Servicio.registrar()
++        // la hashea con BCrypt antes de guardarla y nunca se devuelve en las respuestas.
++        @NotBlank(message = "La contraseña es obligatoria.")
++        @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres.")
++        private String password;
++
+         private Integer horasExtras;
+ 
+ 
+diff --git a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/UsuarioLoginDto.java b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/UsuarioLoginDto.java
+index 1ac360d..051b027 100644
+--- a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/UsuarioLoginDto.java
++++ b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/dto/UsuarioLoginDto.java
+@@ -1,5 +1,6 @@
+ package com.hotel.gestion.personal.dto;
+ 
++import jakarta.validation.constraints.NotBlank;
+ import lombok.AllArgsConstructor;
+ import lombok.Builder;
+ import lombok.Data;
+@@ -11,8 +12,9 @@ import lombok.NoArgsConstructor;
+ @AllArgsConstructor
+ public class UsuarioLoginDto {
+ 
+-
++    @NotBlank(message = "El RUT (username) es obligatorio.")
+     private String username;
+ 
++    @NotBlank(message = "La contraseña es obligatoria.")
+     private String password;
+ }
+\ No newline at end of file
+diff --git a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/entity/PersonalEntity.java b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/entity/PersonalEntity.java
+index 0e32031..e817dbc 100644
+--- a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/entity/PersonalEntity.java
++++ b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/entity/PersonalEntity.java
+@@ -24,4 +24,8 @@ public class PersonalEntity {
+         private int horasExtras;
+         private double sueldoBase;
+         private double sueldoTotal;
++
++        // Hash BCrypt de la contraseña, usado por Servicio.loguear() para
++        // validar credenciales reales en vez de devolver un token fijo.
++        private String password;
+     }
+diff --git a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/exception/CredencialesInvalidasException.java b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/exception/CredencialesInvalidasException.java
+new file mode 100644
+index 0000000..35d1796
+--- /dev/null
++++ b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/exception/CredencialesInvalidasException.java
+@@ -0,0 +1,14 @@
++package com.hotel.gestion.personal.exception;
++
++/**
++ * Se lanza cuando el RUT no existe o la contraseña no coincide con el hash
++ * almacenado. Se maneja con su propio @ExceptionHandler en este servicio
++ * (ver PersonalExceptionHandler) en vez de en la librería hotel-global-exception,
++ * porque "credenciales inválidas" es una regla de negocio propia del login
++ * de personal y no algo que el resto de microservicios necesite reutilizar.
++ */
++public class CredencialesInvalidasException extends RuntimeException {
++    public CredencialesInvalidasException(String mensaje) {
++        super(mensaje);
++    }
++}
+diff --git a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/exception/PersonalExceptionHandler.java b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/exception/PersonalExceptionHandler.java
+new file mode 100644
+index 0000000..bd0c99c
+--- /dev/null
++++ b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/exception/PersonalExceptionHandler.java
+@@ -0,0 +1,35 @@
++package com.hotel.gestion.personal.exception;
++
++import com.hotel.exception.exception.ErrorResponse;
++import jakarta.servlet.http.HttpServletRequest;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.ControllerAdvice;
++import org.springframework.web.bind.annotation.ExceptionHandler;
++
++import java.time.LocalDateTime;
++
++/**
++ * Handler propio de este microservicio para errores de login.
++ * Se mantiene aquí (en vez de en hotel-global-exception) porque devuelve 401,
++ * un código que ningún handler de la librería compartida cubre todavía, y
++ * que solo tiene sentido en el contexto de autenticación de personal.
++ */
++@ControllerAdvice
++public class PersonalExceptionHandler {
++
++    @ExceptionHandler(CredencialesInvalidasException.class)
++    public ResponseEntity<ErrorResponse> handleCredencialesInvalidas(
++            CredencialesInvalidasException ex, HttpServletRequest request) {
++
++        ErrorResponse error = ErrorResponse.builder()
++                .timestamp(LocalDateTime.now())
++                .status(HttpStatus.UNAUTHORIZED.value())
++                .error("Credenciales Inválidas")
++                .message(ex.getMessage())
++                .path(request.getRequestURI())
++                .build();
++
++        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
++    }
++}
+diff --git a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/servicio/Servicio.java b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/servicio/Servicio.java
+index 04025b4..b920d2d 100644
+--- a/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/servicio/Servicio.java
++++ b/ms-gestion-personal/src/main/java/com/hotel/gestion/personal/servicio/Servicio.java
+@@ -4,6 +4,7 @@ import com.hotel.gestion.personal.dto.PersonalDto;
+ import com.hotel.gestion.personal.dto.TokenResponseDto;
+ import com.hotel.gestion.personal.dto.UsuarioLoginDto;
+ import com.hotel.gestion.personal.entity.PersonalEntity;
++import com.hotel.gestion.personal.exception.CredencialesInvalidasException;
+ import com.hotel.gestion.personal.repositorio.Repositorio;
+ import lombok.RequiredArgsConstructor;
+ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+@@ -34,6 +35,10 @@ public class Servicio {
+ 
+         double sueldoTotal = sueldoBase + (dto.getHorasExtras() * 6500.0);
+ 
++        // La contraseña se hashea con BCrypt antes de persistirla; nunca se
++        // guarda ni se devuelve en texto plano.
++        String passwordHash = passwordEncoder.encode(dto.getPassword());
++
+         // Guardar en BD
+         PersonalEntity entidad = PersonalEntity.builder()
+                 .rut(dto.getRut())
+@@ -43,20 +48,27 @@ public class Servicio {
+                 .horasExtras(dto.getHorasExtras())
+                 .sueldoBase(sueldoBase)
+                 .sueldoTotal(sueldoTotal)
++                .password(passwordHash)
+                 .build();
+ 
+         repositorio.save(entidad);
+ 
+ 
+-        return loguear(new UsuarioLoginDto(dto.getRut(), "clave_temporal"));
++        return loguear(new UsuarioLoginDto(dto.getRut(), dto.getPassword()));
+     }
+ 
+     public TokenResponseDto loguear(UsuarioLoginDto loginDto) {
+ 
++        PersonalEntity entidad = repositorio.findByRut(loginDto.getUsername())
++                .orElseThrow(() -> new CredencialesInvalidasException("RUT o contraseña incorrectos."));
++
++        if (!passwordEncoder.matches(loginDto.getPassword(), entidad.getPassword())) {
++            throw new CredencialesInvalidasException("RUT o contraseña incorrectos.");
++        }
+ 
+         return TokenResponseDto.builder()
+                 .token(UUID.randomUUID().toString())
+-                .rol("RECEPCIONISTA")
++                .rol(entidad.getCargo())
+                 .autenticado(true)
+                 .build();
+     }
+diff --git a/ms-gestion-personal/src/test/java/com/hotel/gestion/personal/servicio/ServicioTest.java b/ms-gestion-personal/src/test/java/com/hotel/gestion/personal/servicio/ServicioTest.java
+index 92e2337..270bd22 100644
+--- a/ms-gestion-personal/src/test/java/com/hotel/gestion/personal/servicio/ServicioTest.java
++++ b/ms-gestion-personal/src/test/java/com/hotel/gestion/personal/servicio/ServicioTest.java
+@@ -47,6 +47,7 @@ class ServicioTest {
+                 .cargo("recepcionista")
+                 .turno("MAÑANA")
+                 .horasExtras(0)
++                .password("claveSegura123")
+                 .build();
+     }
+ 
+@@ -57,6 +58,22 @@ class ServicioTest {
+     @DisplayName("registrar()")
+     class Registrar {
+ 
++        @org.junit.jupiter.api.BeforeEach
++        void mockearGuardadoYLogin() {
++            // registrar() guarda la entidad y, al final, llama internamente a
++            // loguear(), que busca por RUT. Sin este mock, findByRut() devolvería
++            // Optional.empty() por defecto y loguear() lanzaría
++            // CredencialesInvalidasException antes de poder retornar el token.
++            // doAnswer() captura la entidad recién guardada y configura
++            // findByRut() para devolverla, simulando un guardado exitoso seguido
++            // de una búsqueda real en base de datos.
++            doAnswer(invocation -> {
++                PersonalEntity guardado = invocation.getArgument(0);
++                when(repositorio.findByRut(guardado.getRut())).thenReturn(java.util.Optional.of(guardado));
++                return guardado;
++            }).when(repositorio).save(any(PersonalEntity.class));
++        }
++
+         @Test
+         @DisplayName("Lanza excepción si el RUT ya existe")
+         void registrar_rutDuplicado_lanzaExcepcion() {
+@@ -154,6 +171,70 @@ class ServicioTest {
+         }
+     }
+ 
++    // ==========================================================
++    // loguear()
++    // ==========================================================
++    @Nested
++    @DisplayName("loguear()")
++    class Loguear {
++
++        @Test
++        @DisplayName("Lanza CredencialesInvalidasException si el RUT no existe")
++        void loguear_rutInexistente_lanzaExcepcion() {
++            when(repositorio.findByRut("99999999-9")).thenReturn(java.util.Optional.empty());
++
++            var loginDto = new com.hotel.gestion.personal.dto.UsuarioLoginDto("99999999-9", "cualquierClave");
++
++            assertThrows(
++                    com.hotel.gestion.personal.exception.CredencialesInvalidasException.class,
++                    () -> servicio.loguear(loginDto)
++            );
++        }
++
++        @Test
++        @DisplayName("Lanza CredencialesInvalidasException si la contraseña no coincide")
++        void loguear_passwordIncorrecta_lanzaExcepcion() {
++            org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
++                    new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
++
++            PersonalEntity entidad = PersonalEntity.builder()
++                    .rut("12345678-9")
++                    .cargo("RECEPCIONISTA")
++                    .password(encoder.encode("claveCorrecta"))
++                    .build();
++            when(repositorio.findByRut("12345678-9")).thenReturn(java.util.Optional.of(entidad));
++
++            var loginDto = new com.hotel.gestion.personal.dto.UsuarioLoginDto("12345678-9", "claveIncorrecta");
++
++            assertThrows(
++                    com.hotel.gestion.personal.exception.CredencialesInvalidasException.class,
++                    () -> servicio.loguear(loginDto)
++            );
++        }
++
++        @Test
++        @DisplayName("Retorna token con el rol real del trabajador si las credenciales son correctas")
++        void loguear_credencialesCorrectas_retornaTokenConRolReal() {
++            org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
++                    new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
++
++            PersonalEntity entidad = PersonalEntity.builder()
++                    .rut("12345678-9")
++                    .cargo("ADMINISTRADOR")
++                    .password(encoder.encode("claveSegura123"))
++                    .build();
++            when(repositorio.findByRut("12345678-9")).thenReturn(java.util.Optional.of(entidad));
++
++            var loginDto = new com.hotel.gestion.personal.dto.UsuarioLoginDto("12345678-9", "claveSegura123");
++
++            TokenResponseDto resultado = servicio.loguear(loginDto);
++
++            assertNotNull(resultado.getToken());
++            assertEquals("ADMINISTRADOR", resultado.getRol());
++            assertTrue(resultado.isAutenticado());
++        }
++    }
++
+     // ==========================================================
+     // listar()
+     // ==========================================================
+diff --git a/ms-gestion-reservas/src/main/java/com/hotel/reservas/service/ReservaService.java b/ms-gestion-reservas/src/main/java/com/hotel/reservas/service/ReservaService.java
+index d4d0df0..70d1968 100644
+--- a/ms-gestion-reservas/src/main/java/com/hotel/reservas/service/ReservaService.java
++++ b/ms-gestion-reservas/src/main/java/com/hotel/reservas/service/ReservaService.java
+@@ -1,5 +1,6 @@
+ package com.hotel.reservas.service;
+ 
++import com.fasterxml.jackson.databind.JsonNode;
+ import com.hotel.reservas.dto.ReservaDto;
+ import com.hotel.reservas.entity.ReservaEntity;
+ import com.hotel.reservas.exception.DatosReservaInvalidosException;
+@@ -7,6 +8,7 @@ import com.hotel.reservas.exception.ReservaCanceladaException;
+ import com.hotel.reservas.exception.ReservaNotFoundException;
+ import com.hotel.reservas.repository.ReservaRepository;
+ import lombok.RequiredArgsConstructor;
++import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.stereotype.Service;
+ import org.springframework.web.client.RestTemplate;
+ 
+@@ -23,6 +25,12 @@ public class ReservaService {
+     private final ReservaRepository reservaRepository;
+     private final RestTemplate restTemplate;
+ 
++    // URL base del MS de Habitaciones, inyectada desde application.yaml
++    // (propiedad hotel.ms.habitaciones.url) y sobreescribible en Docker
++    // vía variable de entorno HOTEL_MS_HABITACIONES_URL.
++    @Value("${hotel.ms.habitaciones.url:http://ms-gestion-habitaciones:8084}")
++    private String habitacionesUrl;
++
+     public String crearReserva(ReservaDto dto) {
+         if (dto.getCantidadDias() == null || dto.getCantidadDias() < 1) {
+             throw new DatosReservaInvalidosException(
+@@ -74,16 +82,22 @@ public class ReservaService {
+         return "Reserva #" + idReserva + " cancelada exitosamente.";
+     }
+ 
+-    // Nuevo método integrado para obtener el precio real
++    // Consulta el precio real de la habitación al MS de Habitaciones.
++    // Antes llamaba a "http://localhost:8080/..." (hardcodeado), lo que
++    // dentro de un contenedor Docker apunta al propio contenedor de reservas
++    // y nunca llegaba al gateway ni al servicio de habitaciones.
++    // Ahora usa la URL inyectada por configuración y parsea el campo
++    // "precioBase" real del HabitacionDto en vez de descartar la respuesta.
+     private double obtenerPrecioHabitacion(Long idHabitacion) {
+         try {
+-            // Se comunica vía Gateway (puerto 8080) hacia el MS de habitaciones
+-            String url = "http://localhost:8080/api/habitaciones/" + idHabitacion;
+-            // Retorna el objeto genérico para evitar dependencias de clases externas
+-            var response = restTemplate.getForObject(url, Object.class);
+-            return (response != null) ? (double) 50000.0 : PRECIO_BASE_DEFECTO;
++            String url = habitacionesUrl + "/api/habitaciones/" + idHabitacion;
++            JsonNode response = restTemplate.getForObject(url, JsonNode.class);
++            if (response != null && response.has("precioBase")) {
++                return response.get("precioBase").asDouble(PRECIO_BASE_DEFECTO);
++            }
++            return PRECIO_BASE_DEFECTO;
+         } catch (Exception e) {
+-            return PRECIO_BASE_DEFECTO; // Si falla, mantiene el fallback de Claudio
++            return PRECIO_BASE_DEFECTO; // Si el servicio de habitaciones no responde, usa el fallback
+         }
+     }
+ 
+@@ -96,4 +110,4 @@ public class ReservaService {
+                 e.getMontoTotal()
+         );
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/repositorio/Repository.java b/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/repositorio/NotificacionRepository.java
+similarity index 62%
+rename from ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/repositorio/Repository.java
+rename to ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/repositorio/NotificacionRepository.java
+index 86c9e37..310c54c 100644
+--- a/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/repositorio/Repository.java
++++ b/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/repositorio/NotificacionRepository.java
+@@ -4,9 +4,11 @@ package com.hotel.ms_notificaciones.repositorio;
+ import com.hotel.ms_notificaciones.entity.NotificacionEntity;
+ 
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.stereotype.Repository;
+ import java.util.List;
+ 
+-public interface Repository extends JpaRepository<NotificacionEntity, Long> {
++@Repository
++public interface NotificacionRepository extends JpaRepository<NotificacionEntity, Long> {
+ 
+     List<NotificacionEntity> findByEstado(String estado);
+ }
+\ No newline at end of file
+diff --git a/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/service/Servicio.java b/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/service/Servicio.java
+index 7ae16ee..12fbc46 100644
+--- a/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/service/Servicio.java
++++ b/ms-logs-notificaciones/src/main/java/com/hotel/ms_notificaciones/service/Servicio.java
+@@ -3,7 +3,7 @@ package com.hotel.ms_notificaciones.service;
+ import com.hotel.ms_notificaciones.dto.NotificacionRequest;
+ import com.hotel.ms_notificaciones.entity.NotificacionEntity;
+ import com.hotel.ms_notificaciones.exception.NotificacionNotFoundException;
+-import com.hotel.ms_notificaciones.repositorio.Repository;
++import com.hotel.ms_notificaciones.repositorio.NotificacionRepository;
+ import lombok.RequiredArgsConstructor;
+ import lombok.extern.slf4j.Slf4j;
+ import org.springframework.mail.SimpleMailMessage;
+@@ -19,7 +19,7 @@ import java.util.List;
+ @RequiredArgsConstructor
+ public class Servicio {
+ 
+-        private final Repository repository;
++        private final NotificacionRepository repository;
+         private final JavaMailSender mailSender;
+ 
+ 
+diff --git a/ms-puerta-enlace/pom.xml b/ms-puerta-enlace/pom.xml
+index dbdd089..a860763 100644
+--- a/ms-puerta-enlace/pom.xml
++++ b/ms-puerta-enlace/pom.xml
+@@ -6,7 +6,7 @@
+ 	<parent>
+ 		<groupId>org.springframework.boot</groupId>
+ 		<artifactId>spring-boot-starter-parent</artifactId>
+-		<version>3.2.5</version>
++		<version>3.3.0</version>
+ 		<relativePath/> </parent>
+ 
+ 	<groupId>com.hotel</groupId>
+@@ -43,7 +43,7 @@
+ 		</dependency>
+ 		<dependency>
+ 			<groupId>org.springdoc</groupId>
+-			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
++			<artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+ 			<version>2.0.2</version>
+ 		</dependency>
+ 			<dependency>
+diff --git a/ms-puerta-enlace/src/main/java/com/hotel/puertaenlace/config/SecurityConfig.java b/ms-puerta-enlace/src/main/java/com/hotel/puertaenlace/config/SecurityConfig.java
+new file mode 100644
+index 0000000..e995a78
+--- /dev/null
++++ b/ms-puerta-enlace/src/main/java/com/hotel/puertaenlace/config/SecurityConfig.java
+@@ -0,0 +1,34 @@
++package com.hotel.puertaenlace.config;
++
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
++import org.springframework.security.config.web.server.ServerHttpSecurity;
++import org.springframework.security.web.server.SecurityWebFilterChain;
++
++/**
++ * Configuración de seguridad reactiva para el Gateway.
++ *
++ * Spring Cloud Gateway usa WebFlux, no Servlet, por lo que la configuración
++ * de seguridad debe declararse con ServerHttpSecurity (reactiva) y no con
++ * HttpSecurity (la que se usa en los microservicios MVC tradicionales).
++ *
++ * Aquí se deshabilita la configuración de login por defecto de Spring Security
++ * (que exige usuario/contraseña autogenerados para todas las rutas) y se deja
++ * pasar todo el tráfico, ya que la validación real del token JWT la realiza
++ * JwtAuthenticationFilter como GlobalFilter del propio Gateway.
++ */
++@Configuration
++@EnableWebFluxSecurity
++public class SecurityConfig {
++
++    @Bean
++    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
++        return http
++                .csrf(ServerHttpSecurity.CsrfSpec::disable)
++                .httpBasic(httpBasic -> httpBasic.disable())
++                .formLogin(formLogin -> formLogin.disable())
++                .authorizeExchange(exchange -> exchange.anyExchange().permitAll())
++                .build();
++    }
++}
+diff --git a/ms-puerta-enlace/src/main/resources/application.yml b/ms-puerta-enlace/src/main/resources/application.yml
+index b99484d..3a71274 100644
+--- a/ms-puerta-enlace/src/main/resources/application.yml
++++ b/ms-puerta-enlace/src/main/resources/application.yml
+@@ -9,6 +9,15 @@ spring:
+     gateway:
+       routes:
+ 
++        # ========================================================
++        # MS: GESTIÓN DE PERSONAL — LOGIN (sin token, es como se obtiene)
++        # ========================================================
++        - id: ms-gestion-personal-login
++          uri: http://ms-gestion-personal:8082
++          predicates:
++            - Path=/api/personal/login
++          # Sin JwtAuthenticationFilter: todavía no existe un token que exigir
++
+         # ========================================================
+         # MS: GESTIÓN DE PERSONAL (Carlos Lobos)
+         # ========================================================
+@@ -16,6 +25,8 @@ spring:
+           uri: http://ms-gestion-personal:8082
+           predicates:
+             - Path=/api/personal/**
++          filters:
++            - JwtAuthenticationFilter
+ 
+         # ========================================================
+         # MS: GESTIÓN DE HUÉSPEDES (Claudio Bertero)
+@@ -24,6 +35,8 @@ spring:
+           uri: http://ms-gestion-huespedes:8083
+           predicates:
+             - Path=/api/huespedes/**
++          filters:
++            - JwtAuthenticationFilter
+ 
+         # ========================================================
+         # MS: GESTIÓN DE HABITACIONES (Claudio Bertero)
+@@ -32,6 +45,8 @@ spring:
+           uri: http://ms-gestion-habitaciones:8084
+           predicates:
+             - Path=/api/habitaciones/**
++          filters:
++            - JwtAuthenticationFilter
+ 
+         # ========================================================
+         # MS: GESTIÓN DE RESERVAS (Claudio Bertero)
+@@ -40,14 +55,20 @@ spring:
+           uri: http://ms-gestion-reservas:8085
+           predicates:
+             - Path=/api/reservas/**
++          filters:
++            - JwtAuthenticationFilter
+ 
+         # ========================================================
+         # MS: GESTIÓN DE AUDITORÍA (Logs / Historial)
++        # NOTA: la ruta debe coincidir con @RequestMapping("/api/auditoria")
++        # del controlador real (AuditoriaController), no con "/api/log-auditoria"
+         # ========================================================
+         - id: ms-log-auditoria
+           uri: http://ms-log-auditoria:8086
+           predicates:
+-            - Path=/api/log-auditoria/**
++            - Path=/api/auditoria/**
++          filters:
++            - JwtAuthenticationFilter
+ 
+         # ===================================================================
+         # MS: GESTIÓN DE NOTIFICACIONES (Alertas / Correos) (Carlos Lobos)
+@@ -56,6 +77,8 @@ spring:
+           uri: http://ms-logs-notificaciones:8087
+           predicates:
+             - Path=/api/notificaciones/**
++          filters:
++            - JwtAuthenticationFilter
+ 
+         # ========================================================
+         # MS: RECEPCIONISTA (Orquestador) - NUEVO
+@@ -63,4 +86,6 @@ spring:
+         - id: ms-recepcionista
+           uri: http://ms-recepcionista:8088
+           predicates:
+-            - Path=/api/recepcion/**
+\ No newline at end of file
++            - Path=/api/recepcion/**
++          filters:
++            - JwtAuthenticationFilter
+diff --git a/ms-recepcionista/Dockerfile b/ms-recepcionista/Dockerfile
+index a4b3f93..e817c1c 100644
+--- a/ms-recepcionista/Dockerfile
++++ b/ms-recepcionista/Dockerfile
+@@ -25,6 +25,6 @@ WORKDIR /app
+ COPY --from=build /app/target/*.jar app.jar
+ 
+ # Puerto expuesto (informativo, se mapea real en docker-compose)
+-EXPOSE 8080
++EXPOSE 8088
+ 
+ ENTRYPOINT ["java", "-jar", "app.jar"]

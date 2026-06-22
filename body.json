@@ -1,0 +1,10 @@
+﻿{
+  "rut": "12.345.678-9",
+  "nombreCompleto": "Juan Perez",
+  "cargo": "Recepcionista",
+  "turno": "Manana",
+  "password": "miClave123",
+  "horasExtras": 0,
+  "sueldoBase": 650000,
+  "sueldoTotal": 650000
+}

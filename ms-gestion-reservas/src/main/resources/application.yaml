@@ -1,0 +1,37 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: ms-gestion-reservas
+
+  # MySQL DataSource
+  datasource:
+    url: jdbc:mysql://hotel-mysql:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password:
+
+  # JPA / Hibernate
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# Swagger / OpenAPI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+# URLs de los otros microservicios (Comunicación interna Este-Oeste)
+hotel:
+  ms:
+    huespedes:
+      url: http://ms-gestion-huespedes:8083
+    habitaciones:
+      url: http://ms-gestion-habitaciones:8084

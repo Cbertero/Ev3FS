@@ -1,0 +1,9 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: ms-recepcionista
+
+gateway:
+  url: http://ms-puerta-enlace:8080

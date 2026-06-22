@@ -1,0 +1,30 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: ms-notificaciones
+
+  mail:
+    host: localhost
+    port: 1025
+    username: noreply@hotel-demo.local
+    password: ""
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+        connectiontimeout: 3000
+        timeout: 3000
+        writetimeout: 3000
+
+  # Configuración de base de datos MySQL
+  # En Docker, estos valores se sobrescriben con las variables de entorno
+  # SPRING_DATASOURCE_URL / SPRING_DATASOURCE_USERNAME / SPRING_DATASOURCE_PASSWORD
+  datasource:
+    url: jdbc:mysql://localhost:3306/Hotel_CL_CB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password:
