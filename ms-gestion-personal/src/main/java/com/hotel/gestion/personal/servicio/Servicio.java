@@ -1,5 +1,6 @@
 package com.hotel.gestion.personal.servicio;
 
+import com.hotel.gestion.personal.Security.JwtUtil;
 import com.hotel.gestion.personal.dto.PersonalDto;
 import com.hotel.gestion.personal.dto.TokenResponseDto;
 import com.hotel.gestion.personal.dto.UsuarioLoginDto;
@@ -20,6 +21,7 @@ public class Servicio {
 
     private final Repositorio repositorio;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final JwtUtil jwtUtil;
 
 
     public TokenResponseDto registrar(PersonalDto dto) {
@@ -66,8 +68,10 @@ public class Servicio {
             throw new CredencialesInvalidasException("RUT o contraseña incorrectos.");
         }
 
+        String token = jwtUtil.generarToken(entidad.getRut(), entidad.getCargo());
+
         return TokenResponseDto.builder()
-                .token(UUID.randomUUID().toString())
+                .token(token)
                 .rol(entidad.getCargo())
                 .autenticado(true)
                 .build();

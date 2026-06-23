@@ -7,6 +7,7 @@ import com.hotel.gestion.personal.servicio.Servicio;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,7 +31,14 @@ public class Controller {
 
 
     @GetMapping("/listar")
-    public ResponseEntity<List<PersonalDto>> listar(@RequestParam String rolUsuario) {
+    public ResponseEntity<List<PersonalDto>> listar() {
+        String rolUsuario = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .iterator().next()
+                .getAuthority()
+                .replace("ROLE_", "");
+
         return ResponseEntity.ok(servicio.listar(rolUsuario));
     }
 

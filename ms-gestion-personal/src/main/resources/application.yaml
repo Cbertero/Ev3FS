@@ -19,3 +19,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+jwt:
+  secret: "CAMBIA_ESTO_POR_UNA_CLAVE_LARGA_Y_SECRETA_DE_AL_MENOS_32_CARACTERES"
+  expiration-ms: 3600000
