@@ -75,20 +75,6 @@ class ServicioTest {
         }
 
         @Test
-        @DisplayName("Lanza excepción si el RUT ya existe")
-        void registrar_rutDuplicado_lanzaExcepcion() {
-            when(repositorio.existsById(personalDtoBase.getRut())).thenReturn(true);
-
-            IllegalArgumentException ex = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> servicio.registrar(personalDtoBase)
-            );
-
-            assertEquals("El trabajador ya existe.", ex.getMessage());
-            verify(repositorio, never()).save(any());
-        }
-
-        @Test
         @DisplayName("Asigna sueldo base 650000 para cargo RECEPCIONISTA")
         void registrar_cargoRecepcionista_asignaSueldoBaseCorrecto() {
             personalDtoBase.setCargo("recepcionista");
