@@ -1,5 +1,6 @@
 package com.hotel.gestion.personal.servicio;
 
+import com.hotel.gestion.personal.Security.JwtUtil;
 import com.hotel.gestion.personal.dto.PersonalDto;
 import com.hotel.gestion.personal.dto.TokenResponseDto;
 import com.hotel.gestion.personal.entity.PersonalEntity;
@@ -24,8 +25,8 @@ import static org.mockito.Mockito.*;
  * Pruebas unitarias de la clase Servicio (ms-gestion-personal).
  *
  * Se utiliza Mockito para aislar la lógica de negocio del acceso a datos:
- * el Repositorio se simula (mock) en todos los casos, por lo que estas
- * pruebas no requieren base de datos ni contexto de Spring.
+ * el Repositorio y el JwtUtil se simulan (mock) en todos los casos, por lo
+ * que estas pruebas no requieren base de datos ni contexto de Spring.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Servicio - Gestión de Personal")
@@ -33,6 +34,9 @@ class ServicioTest {
 
     @Mock
     private Repositorio repositorio;
+
+    @Mock
+    private JwtUtil jwtUtil;
 
     @InjectMocks
     private Servicio servicio;
@@ -49,6 +53,16 @@ class ServicioTest {
                 .horasExtras(0)
                 .password("claveSegura123")
                 .build();
+
+        // Stub general: cualquier llamada a generarToken() devuelve un token
+        // de prueba. Se marca como "lenient" porque algunos tests (los que
+        // lanzan CredencialesInvalidasException antes de llegar a esta
+        // línea, p.ej. RUT inexistente o password incorrecta) nunca llegan a
+        // invocar generarToken(). MockitoExtension usa "strict stubs" por
+        // defecto y marcaría ese stub como "unnecessary" en esos tests
+        // puntuales; lenient() le indica explícitamente que es un stub
+        // compartido y que está bien que no se use en todos los casos.
+        lenient().when(jwtUtil.generarToken(any(), any())).thenReturn("token-de-prueba");
     }
 
     // ==========================================================
