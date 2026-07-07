@@ -32,7 +32,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException ex, HttpServletRequest request) {
-        if (ex.getMessage() != null && (ex.getMessage().toLowerCase().contains("no encontrado") || ex.getMessage().toLowerCase().contains("not found"))) {
+        if (ex.getClass().getSimpleName().endsWith("NotFoundException")) {
             ErrorResponse error = ErrorResponse.builder()
                     .timestamp(LocalDateTime.now())
                     .status(HttpStatus.NOT_FOUND.value())
